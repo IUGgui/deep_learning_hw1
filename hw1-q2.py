@@ -48,7 +48,7 @@ class LogisticRegression(nn.Module):
 # Q2.2
 class FeedforwardNetwork(nn.Module):
     def __init__(
-            self, n_classes, n_features, hidden_size, layers,
+            self, n_classes, n_features, hidden_sizes, layers,
             activation_type, dropout, **kwargs):
         """
         n_classes (int)
@@ -63,7 +63,22 @@ class FeedforwardNetwork(nn.Module):
         includes modules for several activation functions and dropout as well.
         """
         super().__init__()
-        # Implement me!
+
+        activations = {"tanh": nn.Tanh(), "relu": nn.ReLU()}
+        activation = activations[activation_type]
+
+        dropout = nn.Dropout(dropout)
+
+        in_sizes = [n_features] + [hidden_sizes] * layers
+        out_sizes = [hidden_sizes] * layers + [n_classes]
+
+        self.feedforward = nn.Sequential(*[
+            nn.Sequential(
+                nn.Linear(in_size, out_size),
+                activation,
+                dropout)
+            for in_size, out_size in zip(in_sizes[:-1], out_sizes[:-1])],
+            nn.Linear(in_sizes[-1], out_sizes[-1]))
 
     def forward(self, x, **kwargs):
         """
@@ -73,7 +88,7 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        raise NotImplementedError
+        self.feedforward(x)
 
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -96,6 +111,7 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     """
     optimizer.zero_grad()
     output = model(X, **kwargs)
+    
     loss = criterion(output, y)
     loss.backward()
     optimizer.step()
@@ -133,12 +149,14 @@ def plot(epochs, plottable, ylabel='', name=''):
 
 def main():
     parser = argparse.ArgumentParser()
+    """
+
     parser.add_argument('model',
                         choices=['logistic_regression', 'mlp'],
                         help="Which model should the script run?")
     parser.add_argument('-epochs', default=20, type=int,
-                        help="""Number of epochs to train for. You should not
-                        need to change this value for your plots.""")
+                        help=Number of epochs to train for. You should not
+                        need to change this value for your plots.)
     parser.add_argument('-batch_size', default=1, type=int,
                         help="Size of training batch.")
     parser.add_argument('-learning_rate', type=float, default=0.01)
@@ -150,9 +168,21 @@ def main():
                         choices=['tanh', 'relu'], default='relu')
     parser.add_argument('-optimizer',
                         choices=['sgd', 'adam'], default='sgd')
+                            """ 
     opt = parser.parse_args()
 
     utils.configure_seed(seed=42)
+
+    opt.model = "mlp"
+    opt.epochs = 20
+    opt.batch_size = 1
+    opt.learning_rate = 0.001
+    opt.l2_decay = 0
+    opt.hidden_sizes = 100
+    opt.layers = 1
+    opt.dropout = 0.3
+    opt.activation = "relu"
+    opt.optimizer = "sgd"
 
     data = utils.load_classification_data()
     dataset = utils.ClassificationDataset(data)
@@ -170,16 +200,16 @@ def main():
 
     # initialize the model
     if opt.model == 'logistic_regression':
-        model = LogisticRegression(n_classes, n_feats)
+        model = LogisticRegression(n_classes, n_feats).to(DEVICE)
     else:
         model = FeedforwardNetwork(
             n_classes,
             n_feats,
-            opt.hidden_size,
+            opt.hidden_sizes,
             opt.layers,
             opt.activation,
             opt.dropout
-        )
+        ).to(DEVICE)
 
     ### Step 2 - Define Loss func. and optimizer
 

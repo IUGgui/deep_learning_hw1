@@ -53,8 +53,10 @@ class Perceptron(LinearModel):
         y_i (scalar): the gold label for that example
         other arguments are ignored
         """
-        # Q1.1a
-        raise NotImplementedError
+        yhat = self.predict(x_i)
+        if yhat != y_i:
+            self.W[y_i, :] = self.W[y_i, :] + x_i
+            self.W[yhat, :] = self.W[yhat, :] - x_i
 
 
 class LogisticRegression(LinearModel):
@@ -64,8 +66,25 @@ class LogisticRegression(LinearModel):
         y_i: the gold label for that example
         learning_rate (float): keep it at the default value for your plots
         """
-        # Q1.1b
-        raise NotImplementedError
+        lr = 0.001
+        ey = np.zeros(10)
+        ey[y_i] = 1.0
+        pyx = np.ones(10)
+        labels = np.matmul(self.W, x_i.T)
+       #for label in range(self.W.shape[0]):
+        #    num = np.exp(labels[label])
+         #   den = np.sum(np.exp(labels))
+          #  pyx[label] = num / den
+        num = np.exp(labels)
+        den = np.sum(np.exp(labels))
+        pyx = num/den
+        final = np.reshape((pyx - ey), (-1, 1))
+        x_i = np.reshape(x_i, (-1, 1))
+        gradient = final @ x_i.T
+        self.W = self.W - lr*gradient
+
+
+
 
 
 class MLP(object):
@@ -74,13 +93,35 @@ class MLP(object):
     # in main().
     def __init__(self, n_classes, n_features, hidden_size):
         # Initialize an MLP with a single hidden layer.
-        raise NotImplementedError
+        '''
+        self.b0 = np.zeros((hidden_size, 1))
+        self.b1 = np.zeros((n_classes, 1))
+        self.w0 = np.random.normal(0.1, 0.1, size=(hidden_size, n_features))
+        self.w1 = np.random.normal(0.1, 0.1, size=(n_classes, hidden_size))
+        '''
+        self.b0 = np.zeros((hidden_size, 1))
+        self.b1 = np.zeros((n_classes, 1))
+        self.w0 = np.random.normal(0.1, 0.1, size=(hidden_size, n_features))
+        self.w1 = np.random.normal(0.1, 0.1, size=(n_classes, hidden_size))
 
     def predict(self, X):
-        # Compute the forward pass of the network. At prediction time, there is
+        #Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes, whereas this is required
         # at training time.
-        raise NotImplementedError
+        predict = []
+        for i in range(X.shape[0]):
+            "foward"
+            x_i = np.reshape(X[i], (X.shape[1], 1))
+            z0 = np.matmul(self.w0, x_i) + self.b0
+            h0 = (z0 + np.abs(z0)) /2
+            z1 = np.matmul(self.w1, h0) + self.b1
+            m = z1.max()
+            num = np.exp(z1 - m)
+            den = np.sum(np.exp(z1 - m))
+            softmax = num/den
+            predict.append(np.argmax(softmax))
+        return predict
+
 
     def evaluate(self, X, y):
         """
@@ -91,10 +132,53 @@ class MLP(object):
         y_hat = self.predict(X)
         n_correct = (y == y_hat).sum()
         n_possible = y.shape[0]
+        print("acc =",n_correct / n_possible)
         return n_correct / n_possible
 
     def train_epoch(self, X, y, learning_rate=0.001):
-        raise NotImplementedError
+        print("X =", X[0])
+        for i in range(X.shape[0]):
+            "foward"
+            x_i = np.reshape(X[i], (X.shape[1], 1))
+            y_i = np.ones((10,1))
+            y_i[y[i]] = y[i]
+            z0 = np.matmul(self.w0, x_i) + self.b0
+            h0 = (z0 + np.abs(z0)) / 2
+            z1 = np.matmul(self.w1, h0) + self.b1
+            m = z1.max()
+            num = np.exp(z1-m)
+            den = np.sum(np.exp(z1-m))
+            softmax = num/den
+            "backpropagation"
+            grad_z1 = softmax - y_i
+            grad_b1 = grad_z1
+            grad_w1 = np.matmul(grad_z1, h0.T)
+
+            #grad_h0 = np.matmul(softmax.T, self.w1).T
+            grad_h0 = self.w1.T @  grad_z1
+            grad_z0 = np.zeros((grad_h0.shape[0], 1))
+            '''
+            for k in range(grad_z0.shape[0]):
+                if z0[k] > 0:
+                    grad_z0[k] = grad_h0[k]
+            '''
+            g_linha = h0
+            g_linha[h0>0] = 1
+            g_linha[h0<=0] = 0
+            grad_z0 = grad_h0 * g_linha
+
+            grad_w0 = np.matmul(grad_z0, x_i.T)
+            grad_b0 = grad_z0
+            "Stochastic gradient descent"
+            self.w1 = self.w1 - learning_rate * grad_w1
+            self.w0 = self.w0 - learning_rate * grad_w0
+            self.b1 = self.b1 - learning_rate * grad_b1
+            self.b0 = self.b0 - learning_rate * grad_b0
+
+
+
+
+
 
 
 def plot(epochs, valid_accs, test_accs):
@@ -143,7 +227,7 @@ def main():
     elif opt.model == 'logistic_regression':
         model = LogisticRegression(n_classes, n_feats)
     else:
-        model = MLP(n_classes, n_feats, opt.hidden_size, opt.layers)
+        model = MLP(n_classes, n_feats, opt.hidden_size)
     epochs = np.arange(1, opt.epochs + 1)
     valid_accs = []
     test_accs = []
