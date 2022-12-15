@@ -88,7 +88,7 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        self.feedforward(x)
+        return self.feedforward(x)
 
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -110,6 +110,7 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     loss as a numerical value that is not part of the computation graph.
     """
     optimizer.zero_grad()
+
     output = model(X, **kwargs)
     
     loss = criterion(output, y)
@@ -173,7 +174,7 @@ def main():
 
     utils.configure_seed(seed=42)
 
-    opt.model = "mlp"
+    opt.model = "logistic_regression"
     opt.epochs = 20
     opt.batch_size = 1
     opt.learning_rate = 0.001
